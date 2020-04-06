@@ -1,4 +1,5 @@
 import javax.swing.*;
+
 import java.awt.event.*;
 import java.io.File;
 
@@ -13,10 +14,14 @@ class ClientInstance{
     void setFiles(File [] newFiles){
         this.files = newFiles;
     }
-    void printFiles(){
+    String getFiles(){
+        String res = "<html>";
         for(File a : files){
-            System.out.println(a.getAbsolutePath());
+            res += a.getName();
+            res += "<br/>";
         }
+        res += "</html>";
+        return res;
     }
     void connect(){
         // so in theory, we would send the files through here....
@@ -28,12 +33,15 @@ public class Driver {
         ClientInstance client = new ClientInstance();
 
         JFrame frame = new JFrame();
-
+        JLabel head = new JLabel("Load My Engine");
+        JLabel fileList = new JLabel("");
         JButton fileChooseBtn = new JButton("Choose Files");
         JButton constructBtn = new JButton("Construct Inverted Indices");
         int btnWidth = 250;
         fileChooseBtn.setBounds(250 - btnWidth/2, 200, btnWidth, 50);
-        constructBtn.setBounds(250 - btnWidth/2, 300, btnWidth, 50);
+        constructBtn.setBounds(250 - btnWidth/2, 350, btnWidth, 50);
+        head.setBounds(250 - btnWidth/2, 100, btnWidth, 50);
+        fileList.setBounds(250 - btnWidth/2, 220, btnWidth, 100);
 
         fileChooseBtn.addActionListener(new ActionListener(){
             public void actionPerformed(ActionEvent e){
@@ -42,6 +50,7 @@ public class Driver {
                 int returnVal = fc.showOpenDialog(frame);
                 if (returnVal == JFileChooser.APPROVE_OPTION){
                     client.setFiles(fc.getSelectedFiles());
+                    fileList.setText(client.getFiles());
                 }
             }
         });
@@ -52,6 +61,8 @@ public class Driver {
             }
         });
         
+        frame.add(fileList);
+        frame.add(head);
         frame.add(fileChooseBtn);
         frame.add(constructBtn);
 
