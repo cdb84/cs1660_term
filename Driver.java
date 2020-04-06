@@ -1,11 +1,31 @@
 import javax.swing.*;
 import java.awt.event.*;
 import java.io.File;
-import java.util.ArrayList;
+
+class ClientInstance{
+    File [] files;
+    ClientInstance(File [] files){
+        this.files = files;
+    }
+    ClientInstance(){
+        this.files = new File[0];
+    }
+    void setFiles(File [] newFiles){
+        this.files = newFiles;
+    }
+    void printFiles(){
+        for(File a : files){
+            System.out.println(a.getAbsolutePath());
+        }
+    }
+    void connect(){
+        // so in theory, we would send the files through here....
+    }
+}
 
 public class Driver {
     public static void main(String [] args){
-        ArrayList<File> files = new ArrayList<File>();
+        ClientInstance client = new ClientInstance();
 
         JFrame frame = new JFrame();
 
@@ -21,11 +41,14 @@ public class Driver {
                 fc.setMultiSelectionEnabled(true);
                 int returnVal = fc.showOpenDialog(frame);
                 if (returnVal == JFileChooser.APPROVE_OPTION){
-                    File [] get = fc.getSelectedFiles();
-                    for(int i = 0; i < get.length; i++){
-                        files.add(get[i]);
-                    }
+                    client.setFiles(fc.getSelectedFiles());
                 }
+            }
+        });
+
+        constructBtn.addActionListener(new ActionListener(){
+            public void actionPerformed(ActionEvent e){
+                client.connect();
             }
         });
         
