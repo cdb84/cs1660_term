@@ -37,11 +37,16 @@ public class Driver {
         JLabel fileList = new JLabel("");
         JButton fileChooseBtn = new JButton("Choose Files");
         JButton constructBtn = new JButton("Construct Inverted Indices");
+        JButton searchBtn = new JButton("Search for Term");
+        JButton topnBtn = new JButton("Top-N");
+
         int btnWidth = 250;
         fileChooseBtn.setBounds(250 - btnWidth/2, 200, btnWidth, 50);
         constructBtn.setBounds(250 - btnWidth/2, 350, btnWidth, 50);
-        head.setBounds(250 - btnWidth/2, 100, btnWidth, 50);
+        head.setBounds(250 - btnWidth/2, 100, btnWidth, 150);
         fileList.setBounds(250 - btnWidth/2, 220, btnWidth, 100);
+        searchBtn.setBounds(250 - btnWidth/2, 250, btnWidth, 50);
+        topnBtn.setBounds(250 - btnWidth/2, 350, btnWidth, 50);
 
         fileChooseBtn.addActionListener(new ActionListener(){
             public void actionPerformed(ActionEvent e){
@@ -58,6 +63,17 @@ public class Driver {
         constructBtn.addActionListener(new ActionListener(){
             public void actionPerformed(ActionEvent e){
                 client.connect();
+                head.setText(
+                    "<html>Engine was loaded <br/> & <br/> Inverted indicies were constructed successfully! <br/> Please Select Action"
+                );
+                frame.remove(fileChooseBtn);
+                frame.remove(constructBtn);
+                frame.remove(fileList);
+
+                frame.add(searchBtn);
+                frame.add(topnBtn);
+
+                frame.repaint();
             }
         });
         
@@ -65,6 +81,7 @@ public class Driver {
         frame.add(head);
         frame.add(fileChooseBtn);
         frame.add(constructBtn);
+
 
         frame.setSize(500, 500);
         frame.setLayout(null);
