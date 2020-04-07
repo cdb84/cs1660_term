@@ -76,6 +76,19 @@ public class Client {
 				frame.repaint();
 			}
 		});
+
+		searchBtn.addActionListener(new ActionListener(){
+			public void actionPerformed(ActionEvent e){
+				// leads to updates for the search function
+				return;
+			}
+		});
+
+		topnBtn.addActionListener(new ActionListener(){
+			public void actionPerformed(ActionEvent e){
+				return;
+			}
+		});
 		
 		frame.add(fileList);
 		frame.add(head);
