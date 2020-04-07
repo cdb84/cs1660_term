@@ -1,4 +1,4 @@
-CP="./lib/*"
+CP=".:./lib/*"
 
 client: Client.java
 	javac Client.java
