@@ -28,7 +28,7 @@ class ClientInstance{
 	}
 }
 
-public class Driver {
+public class Client {
 	public static void main(String [] args){
 		ClientInstance client = new ClientInstance();
 
