@@ -1,7 +1,6 @@
 import java.io.IOException;
 import java.util.StringTokenizer;
 
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileSplit;
@@ -17,7 +16,6 @@ public class WordCountMapper extends Mapper<LongWritable, Text, Text, Text>
     /**
      * @param args the command line arguments
      */
-    // private final static Text one = new Text();
     private Text word = new Text();
 
     public void map(LongWritable key, Text value, Context context)
