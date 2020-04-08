@@ -4,14 +4,20 @@ import java.util.StringTokenizer;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapreduce.Mapper;
 
-public class WordCountMapper extends Mapper<LongWritable, Text, Text, IntWritable>
+// here we set the map to contain the following:
+// LongWritable: record id
+// Text: ?
+// Text: word
+// Text: document identifier
+public class WordCountMapper extends Mapper<LongWritable, Text, Text, Text>
 {
     /**
      * @param args the command line arguments
      */
-    private final static IntWritable one = new IntWritable(1);
+    // private final static Text one = new Text();
     private Text word = new Text();
 
     public void map(LongWritable key, Text value, Context context)
@@ -22,7 +28,8 @@ public class WordCountMapper extends Mapper<LongWritable, Text, Text, IntWritabl
 
         while (tokenizer.hasMoreTokens()) {
             word.set(tokenizer.nextToken());
-            context.write(word, one);
+            // to the context, write an instance of this word : document key value pair
+            context.write(word, new Text(((FileSplit)context.getInputSplit()).getPath().toString()));
         }
     }
 }
