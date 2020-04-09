@@ -4,7 +4,7 @@ import java.util.StringTokenizer;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.conf.*;
