@@ -15,53 +15,47 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.Reducer;
 
 public class WordCount {
-    static class WordCountReducer extends Reducer<Text, IntWritable, Text, IntWritable>
-{
-    public void reduce(Text key, Iterable<Text> docs, Context context)
-        throws IOException, InterruptedException
-    {
-        HashMap<Text, Integer> docCount = new HashMap<Text, Integer>();
+    static class WordCountReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+        public void reduce(Text key, Iterable<Text> docs, Context context) throws IOException, InterruptedException {
+            HashMap<Text, Integer> docCount = new HashMap<Text, Integer>();
 
-        for (Text docId : docs) {
-            if(docCount.containsKey(docId)){
-                Integer x = docCount.get(docId);
-                docCount.put(docId, x+1);
-            }else{
-                docCount.put(docId, 1);
+            for (Text docId : docs) {
+                if (docCount.containsKey(docId)) {
+                    Integer x = docCount.get(docId);
+                    docCount.put(docId, x + 1);
+                } else {
+                    docCount.put(docId, 1);
+                }
             }
+
+            docCount.forEach((Text k, Integer v) -> {
+                try {
+                    context.write(k, new IntWritable(v));
+                } catch (Exception e) {
+                    System.out.println("An error occurred in the context writting portion of the reducer.");
+                }
+            });
         }
-
-        docCount.forEach((Text k, Integer v) -> {
-            try{
-                context.write(k, new IntWritable(v));
-            }
-            catch (Exception e){
-                System.out.println("An error occurred in the context writting portion of the reducer.");
-            }
-        });
-    }
     }
 
-    static class WordCountMapper extends Mapper<LongWritable, Text, Text, Text>
-    {
+    static class WordCountMapper extends Mapper<LongWritable, Text, Text, Text> {
         /**
          * @param args the command line arguments
          */
         private Text word = new Text();
 
-        public void map(LongWritable key, Text value, Context context)
-            throws IOException, InterruptedException
-        {
+        public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             String line = value.toString();
             StringTokenizer tokenizer = new StringTokenizer(line);
 
             while (tokenizer.hasMoreTokens()) {
                 word.set(tokenizer.nextToken());
                 // to the context, write an instance of this word : document key value pair
-                context.write(word, new Text(((FileSplit)context.getInputSplit()).getPath().toString()));
+                context.write(word, new Text(((FileSplit) context.getInputSplit()).getPath().toString()));
             }
         }
     }
+
     public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
         if (args.length != 2) {
             System.err.println("Usage: java WordCount <input path> <output path>");
