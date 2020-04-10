@@ -17,9 +17,11 @@ import org.apache.hadoop.mapreduce.Reducer;
 public class WordCount {
 	static class WordCountReducer extends Reducer<Text, Text, Text, IntWritable> {
 		public void reduce(Text key, Iterable<Text> docs, Context context) throws IOException, InterruptedException {
+			/* We will store a map of words : wordcount in this hashmap */
 			HashMap<Text, Integer> docCount = new HashMap<Text, Integer>();
 
 			for (Text docId : docs) {
+				/* Either we will update an already existing document ID in the hashmap, or create a new one */
 				if (docCount.containsKey(docId)) {
 					Integer x = docCount.get(docId);
 					docCount.put(docId, x + 1);
@@ -28,12 +30,10 @@ public class WordCount {
 				}
 			}
 
-			// document id = k, word count = v
+			String s = key.toString();
+			/* For each key : value of documentId : count, we will write (word, documentId, count) to the context */
 			docCount.forEach((Text k, Integer v) -> {
 				try {
-					String s = key.toString();
-					// we see it writing "hdfs://.." and then an integer here where it should be something more along the lines of 
-					// "word", integer
 					context.write(new Text(s+"\t"+k), new IntWritable(v));
 				} catch (Exception e) {
 					System.out.println("An error occurred in the context writting portion of the reducer.");
@@ -42,7 +42,6 @@ public class WordCount {
 		}
 	}
 
-	// Should this be LW, Text, Text, Iterable<Text>?
 	static class WordCountMapper extends Mapper<LongWritable, Text, Text, Text> {
 		/**
 		 * @param args the command line arguments
@@ -51,13 +50,16 @@ public class WordCount {
 
 		public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 			String line = value.toString();
+			/* Remove punctionation from line before tokenizing, so that single-term tokens don't get clobbered */
+			line = line.replaceAll("\\p{Punct}", "");
 			StringTokenizer tokenizer = new StringTokenizer(line);
 
-			while (tokenizer.hasMoreTokens()) {
-				Text docId = new Text(((FileSplit) context.getInputSplit()).getPath().getName().toString());
-				word.set(tokenizer.nextToken());
+			/* Retreive file name to use as docId, we do this here so that we don't contantly overload I/O */
+			Text docId = new Text(((FileSplit) context.getInputSplit()).getPath().getName().toString());
 
-				// to the context, write an instance of this word : document key value pair
+			while (tokenizer.hasMoreTokens()) {
+				word.set(tokenizer.nextToken());
+				/* Write a pair of word : document to the context, which will be reduced later */
 				context.write(word, docId);
 			}
 		}
