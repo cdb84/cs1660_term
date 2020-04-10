@@ -23,6 +23,12 @@ pitt-submit:
 pitt-retrieve:
 	hadoop fs -getmerge output output.txt
 
+pitt-clean-data:
+	hadoop fs -rm -R data
+
+pitt-add-data:
+	hadoop fs -put data
+
 pitt-clean:
 	hadoop fs -rm -R output
 

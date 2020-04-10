@@ -28,9 +28,13 @@ public class WordCount {
 				}
 			}
 
+			// document id = k, word count = v
 			docCount.forEach((Text k, Integer v) -> {
 				try {
-					context.write(k, new IntWritable(v));
+					String s = key.toString();
+					// we see it writing "hdfs://.." and then an integer here where it should be something more along the lines of 
+					// "word", integer
+					context.write(new Text(s+"\t"+k), new IntWritable(v));
 				} catch (Exception e) {
 					System.out.println("An error occurred in the context writting portion of the reducer.");
 				}
@@ -50,9 +54,11 @@ public class WordCount {
 			StringTokenizer tokenizer = new StringTokenizer(line);
 
 			while (tokenizer.hasMoreTokens()) {
+				Text docId = new Text(((FileSplit) context.getInputSplit()).getPath().getName().toString());
 				word.set(tokenizer.nextToken());
+
 				// to the context, write an instance of this word : document key value pair
-				context.write(word, new Text(((FileSplit) context.getInputSplit()).getPath().toString()));
+				context.write(word, docId);
 			}
 		}
 	}
