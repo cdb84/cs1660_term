@@ -19,22 +19,17 @@ public class WordCount {
 		public void reduce(Text key, Iterable<Text> docs, Context context) throws IOException, InterruptedException {
 			/* We will store a map of words : wordcount in this hashmap */
 			HashMap<Text, Integer> docCount = new HashMap<Text, Integer>();
-
 			for (Text docId : docs) {
-				/* Either we will update an already existing document ID in the hashmap, or create a new one */
-				if (docCount.containsKey(docId)) {
-					Integer x = docCount.get(docId);
-					docCount.put(docId, x + 1);
-				} else {
-					docCount.put(docId, 1);
-				}
+				/* Either we will update an already existing document ID in the hashmap, or create a new one with
+				with just '1' as the value */
+				docCount.put(docId, (docCount.containsKey(docId) ? docCount.get(docId) + 1 : 1));
 			}
 
-			String s = key.toString();
+			String strKey = key.toString()+"\t";
 			/* For each key : value of documentId : count, we will write (word, documentId, count) to the context */
 			docCount.forEach((Text k, Integer v) -> {
 				try {
-					context.write(new Text(s+"\t"+k), new IntWritable(v));
+					context.write(new Text(strKey+k), new IntWritable(v));
 				} catch (Exception e) {
 					System.out.println("An error occurred in the context writting portion of the reducer.");
 				}
@@ -55,7 +50,7 @@ public class WordCount {
 			StringTokenizer tokenizer = new StringTokenizer(line);
 
 			/* Retreive file name to use as docId, we do this here so that we don't contantly overload I/O */
-			Text docId = new Text(((FileSplit) context.getInputSplit()).getPath().getName().toString());
+			Text docId = new Text(((FileSplit) context.getInputSplit()).getPath().getName());
 
 			while (tokenizer.hasMoreTokens()) {
 				word.set(tokenizer.nextToken());
