@@ -15,7 +15,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.Reducer;
 
 public class WordCount {
-	static class WordCountReducer extends Reducer<Text, IntWritable, Text, IntWritable> {
+	static class WordCountReducer extends Reducer<Text, Text, Text, IntWritable> {
 		public void reduce(Text key, Iterable<Text> docs, Context context) throws IOException, InterruptedException {
 			HashMap<Text, Integer> docCount = new HashMap<Text, Integer>();
 
@@ -38,6 +38,7 @@ public class WordCount {
 		}
 	}
 
+	// Should this be LW, Text, Text, Iterable<Text>?
 	static class WordCountMapper extends Mapper<LongWritable, Text, Text, Text> {
 		/**
 		 * @param args the command line arguments
