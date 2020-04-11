@@ -44,7 +44,7 @@ public class WordCount {
 		private Text word = new Text();
 
 		public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-			String line = value.toString();
+			String line = value.toString().toLowerCase();
 			/* Remove punctionation from line before tokenizing, so that single-term tokens don't get clobbered */
 			line = line.replaceAll("\\p{Punct}", "");
 			StringTokenizer tokenizer = new StringTokenizer(line);
