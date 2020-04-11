@@ -21,6 +21,8 @@ import com.google.common.collect.Lists;
 
 class ClientInstance {
 	File[] files;
+	int instanceId;
+	String outputArg;
 
 	ClientInstance() {
 		this.files = new File[0];
@@ -41,6 +43,8 @@ class ClientInstance {
 	}
 
 	void connect() throws IOException {
+		instanceId = (int)(Math.random()*1000000000);
+		outputArg = "gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/output"+instanceId;
 		InputStream is = this.getClass().getResourceAsStream("/credentials.json");
 		GoogleCredentials credentials = GoogleCredentials.fromStream(is)
 				.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
@@ -55,7 +59,7 @@ class ClientInstance {
 						.setJarFileUris(ImmutableList
 								.of("gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/JAR/WordCount.jar"))
 						.setArgs(ImmutableList.of("gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/data",
-								"gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/output")))))
+								outputArg)))))
 				.execute();
 	}
 }
@@ -63,15 +67,6 @@ class ClientInstance {
 public class Client {
 	public static void main(String[] args) {
 		ClientInstance client = new ClientInstance();
-		try {
-			client.connect();
-			
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
-		}
-
-		System.exit(-1);
 		JFrame frame = new JFrame();
 		JLabel head = new JLabel("Load My Engine");
 		JLabel fileList = new JLabel("");
