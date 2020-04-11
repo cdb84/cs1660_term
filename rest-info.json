@@ -1,0 +1,24 @@
+{
+  "projectId": "cloud-computing-term-project",
+  "job": {
+    "placement": {
+      "clusterName": "cluster-a6a9"
+    },
+    "statusHistory": [],
+    "reference": {
+      "jobId": "job-d29c0d8c",
+      "projectId": "cloud-computing-term-project"
+    },
+    "hadoopJob": {
+      "properties": {},
+      "jarFileUris": [
+        "gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/JAR/WordCount.jar"
+      ],
+      "args": [
+        "gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/data",
+        "gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/output"
+      ],
+      "mainClass": "WordCount"
+    }
+  }
+}
