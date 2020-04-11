@@ -21,16 +21,9 @@ import com.google.common.collect.Lists;
 
 class ClientInstance {
 	File[] files;
-	String apiKey;
 
-	ClientInstance(File[] files, String apiKey) {
-		this.files = files;
-		this.apiKey = apiKey;
-	}
-
-	ClientInstance(String apiKey) {
+	ClientInstance() {
 		this.files = new File[0];
-		this.apiKey = apiKey;
 	}
 
 	void setFiles(File[] newFiles) {
@@ -48,7 +41,6 @@ class ClientInstance {
 	}
 
 	void connect() throws IOException {
-		// so in theory, we would send the files through here....
 		InputStream is = this.getClass().getResourceAsStream("/credentials.json");
 		GoogleCredentials credentials = GoogleCredentials.fromStream(is)
 				.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
@@ -57,25 +49,29 @@ class ClientInstance {
 		Dataproc dataproc = new Dataproc.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer)
 				.build();
 
-		dataproc.projects().regions().jobs().submit("cloudproject-273403", "us-central1", new SubmitJobRequest().setJob(
-				new Job().setPlacement(new JobPlacement().setClusterName("my-cluster")).setHadoopJob(new HadoopJob()
+		dataproc.projects().regions().jobs().submit("cloud-computing-term-project", "us-central1", new SubmitJobRequest().setJob(
+				new Job().setPlacement(new JobPlacement().setClusterName("cluster-a6a9")).setHadoopJob(new HadoopJob()
 						.setMainClass("WordCount")
 						.setJarFileUris(ImmutableList
-								.of("gs://dataproc-staging-us-central1-1093852109547-d5pnwsmu/JAR/WordCount.jar"))
-						.setArgs(ImmutableList.of("gs://dataproc-staging-us-central1-1093852109547-d5pnwsmu/data",
-								"gs://dataproc-staging-us-central1-1093852109547-d5pnwsmu/output")))))
+								.of("gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/JAR/WordCount.jar"))
+						.setArgs(ImmutableList.of("gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/data",
+								"gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/output")))))
 				.execute();
 	}
 }
 
 public class Client {
 	public static void main(String[] args) {
-		if (args.length < 1) {
-			System.err.println("Invalid arguments:\njava Client <GCP API KEY>");
-			System.exit(-1);
+		ClientInstance client = new ClientInstance();
+		try {
+			client.connect();
+			
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
 		}
-		ClientInstance client = new ClientInstance(args[0]);
 
+		System.exit(-1);
 		JFrame frame = new JFrame();
 		JLabel head = new JLabel("Load My Engine");
 		JLabel fileList = new JLabel("");
@@ -107,7 +103,11 @@ public class Client {
 		constructBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 
-				client.connect();
+				try {
+					client.connect();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
 
 				head.setText(
 						"<html>Engine was loaded <br/> & <br/> Inverted indicies were constructed successfully! <br/> Please Select Action");

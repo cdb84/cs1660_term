@@ -3,3 +3,4 @@ data
 *.crc
 .vscode
 client
+credentials.json

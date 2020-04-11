@@ -1,7 +1,7 @@
 CP=".:./lib/*"
 
 client: Client.java
-	javac Client.java
+	javac -cp $(CP) Client.java
 
 wc: WordCount.java
 	javac -cp $(CP) WordCount.java
