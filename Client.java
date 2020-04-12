@@ -1,9 +1,15 @@
 import javax.swing.*;
 
 import java.awt.event.*;
+import java.awt.Cursor;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import com.google.api.gax.paging.Page;
@@ -18,6 +24,8 @@ import com.google.api.services.dataproc.model.SubmitJobRequest;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage;
@@ -28,6 +36,11 @@ class ClientInstance {
 	File[] files;
 	int instanceId;
 	String outputArg;
+	String inputArg;
+	Page<Blob> blobs;
+	byte[] outputData;
+	ArrayList<String[]> results;
+	Storage storage;
 	static final String projectId = "cloud-computing-term-project";
 	static final String clusterId = "cluster-a6a9";
 	static final String region = "us-central1";
@@ -53,59 +66,96 @@ class ClientInstance {
 		return res;
 	}
 
-	void retrieveObjects() throws Exception {
+	void upload(){
+		for(File f : files){
+			
+			BlobId id = BlobId.of(bucketId, "input"+instanceId+"/"+f.getName());
+			BlobInfo info = BlobInfo.newBuilder(id).build();
+			try {
+				storage.create(info, Files.readAllBytes(Paths.get(f.getPath())));
+			} catch (IOException e) {
+				System.out.println("Could not retrieve file: "+f.getPath());
+			}
+			System.out.println("Uploaded "+f.getPath());
+		}
+		
+	}
 
-		Storage storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build()
-				.getService();
-		Page<Blob> blobs = storage.list(bucketId, BlobListOption.prefix("output" + instanceId));
+	boolean checkBucketForTemporaryFiles() {
+		// storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build()
+		// 		.getService();
+		blobs = storage.list(bucketId, BlobListOption.prefix("output" + instanceId));
+		Iterator<Blob> iterator = blobs.iterateAll().iterator();
+		try {
+			iterator.next();
+		} catch (Exception e) {
+			return true;
+		}
+		while (iterator.hasNext()) {
+			Blob blob = iterator.next();
+			if (blob.getName().contains("temporary")) {
+				return true;
+			}
+			System.out.println(blob.getBlobId());
+		}
+		return false;
+	}
+
+	void mergeBlobs() {
+		ArrayList<byte[]> allOutput = new ArrayList<byte[]>();
+		int total = 0;
+		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		Iterator<Blob> iterator = blobs.iterateAll().iterator();
 		iterator.next();
 		while (iterator.hasNext()) {
 			Blob blob = iterator.next();
-			if (blob.getName().contains("temporary")) {
-				throw new Exception();
-			}
-			System.out.println(blob.getBlobId());
+			blob.downloadTo(byteStream);
+			allOutput.add(byteStream.toByteArray());
+			total += byteStream.size();
+			byteStream.reset();
 		}
+
+		outputData = new byte[total];
+		int offset = 0;
+		for (byte[] data : allOutput) {
+			System.arraycopy(data, 0, outputData, offset, data.length);
+			offset += data.length;
+		}
+		System.out.print(new String(outputData));
 	}
 
 	void connect() throws IOException {
 		instanceId = (int) (Math.random() * 1000000000);
 		outputArg = bucketRoot + "output" + instanceId;
+		inputArg = bucketRoot + "input" + instanceId;
 		InputStream is = this.getClass().getResourceAsStream("/credentials.json");
 		credentials = GoogleCredentials.fromStream(is)
 				.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
 
 		HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
-		Dataproc dataproc = new Dataproc.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer)
-				.build();
+		Dataproc dataproc = new Dataproc.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer).build();
 
-		dataproc.projects().regions().jobs().submit(projectId, region,
-				new SubmitJobRequest().setJob(new Job().setPlacement(new JobPlacement().setClusterName(clusterId))
-						.setHadoopJob(new HadoopJob().setMainClass("WordCount")
-								.setJarFileUris(ImmutableList.of(bucketRoot + "JAR/WordCount.jar"))
-								.setArgs(ImmutableList.of(bucketRoot + "data", outputArg)))))
+		storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build()
+				.getService();
+		upload();
+
+		dataproc.projects().regions().jobs()
+				.submit(projectId, region,
+						new SubmitJobRequest().setJob(new Job().setPlacement(new JobPlacement().setClusterName(clusterId))
+								.setHadoopJob(new HadoopJob().setMainClass("WordCount")
+										.setJarFileUris(ImmutableList.of(bucketRoot + "JAR/WordCount.jar"))
+										.setArgs(ImmutableList.of(inputArg, outputArg)))))
 				.execute();
-
 		System.out.println("Submitted job for instance #" + instanceId);
 		int x = 0;
-		while (true) {
-			try {
-				retrieveObjects();
-				break;
-			} catch (Exception e) {
-				try {
-					Thread.sleep(10000);
-				} catch (InterruptedException e1) {
-					e1.printStackTrace();
-				}
-				x += 1;
-				if (x % 1000000 == 0) {
-					System.out.print(".");
-				}
+		while (checkBucketForTemporaryFiles()) {
+			x++;
+			if (x % 10000 == 0) {
+				System.out.print(".");
 			}
 		}
 		System.out.println();
+		mergeBlobs();
 	}
 }
 
@@ -136,6 +186,9 @@ public class Client {
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					client.setFiles(fc.getSelectedFiles());
 					fileList.setText(client.getFiles());
+					for(File a : client.files){
+						System.out.println(a.getPath());
+					}
 				}
 			}
 		});
@@ -144,13 +197,12 @@ public class Client {
 			public void actionPerformed(ActionEvent e) {
 
 				try {
-					head.setText("Loading...");
-					frame.repaint();
+					frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 					client.connect();
 				} catch (IOException e1) {
 					e1.printStackTrace();
 				}
-
+				frame.setCursor(Cursor.getDefaultCursor());
 				head.setText(
 						"<html>Engine was loaded <br/> & <br/> Inverted indicies were constructed successfully! <br/> Please Select Action");
 				frame.remove(fileChooseBtn);
