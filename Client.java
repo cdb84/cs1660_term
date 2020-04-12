@@ -4,8 +4,9 @@ import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
 
-
+import com.google.api.gax.paging.Page;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -16,6 +17,11 @@ import com.google.api.services.dataproc.model.JobPlacement;
 import com.google.api.services.dataproc.model.SubmitJobRequest;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -23,6 +29,12 @@ class ClientInstance {
 	File[] files;
 	int instanceId;
 	String outputArg;
+	static final String projectId = "cloud-computing-term-project";
+	static final String clusterId = "cluster-a6a9";
+	static final String region = "us-central1";
+	static final String bucketRoot = "gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/";
+	static final String bucketId = "dataproc-staging-us-central1-216204761685-cmnq2xp2";
+	static GoogleCredentials credentials;
 
 	ClientInstance() {
 		this.files = new File[0];
@@ -42,25 +54,58 @@ class ClientInstance {
 		return res;
 	}
 
+	void retrieveObjects() throws Exception {
+
+		Storage storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build()
+				.getService();
+		Page<Blob> blobs = storage.list(bucketId, BlobListOption.prefix("output" + instanceId));
+		Iterator<Blob> iterator = blobs.iterateAll().iterator();
+		iterator.next();
+		while (iterator.hasNext()) {
+			Blob blob = iterator.next();
+			if (blob.getName().contains("temp"))
+				throw new Exception();
+			System.out.println(blob.getBlobId());
+		}
+	}
+
 	void connect() throws IOException {
-		instanceId = (int)(Math.random()*1000000000);
-		outputArg = "gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/output"+instanceId;
+		instanceId = (int) (Math.random() * 1000000000);
+		outputArg = bucketRoot + "output" + instanceId;
 		InputStream is = this.getClass().getResourceAsStream("/credentials.json");
-		GoogleCredentials credentials = GoogleCredentials.fromStream(is)
+		credentials = GoogleCredentials.fromStream(is)
 				.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
 
 		HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
 		Dataproc dataproc = new Dataproc.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer)
 				.build();
 
-		dataproc.projects().regions().jobs().submit("cloud-computing-term-project", "us-central1", new SubmitJobRequest().setJob(
-				new Job().setPlacement(new JobPlacement().setClusterName("cluster-a6a9")).setHadoopJob(new HadoopJob()
-						.setMainClass("WordCount")
-						.setJarFileUris(ImmutableList
-								.of("gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/JAR/WordCount.jar"))
-						.setArgs(ImmutableList.of("gs://dataproc-staging-us-central1-216204761685-cmnq2xp2/data",
-								outputArg)))))
+		dataproc.projects().regions().jobs().submit(projectId, region,
+				new SubmitJobRequest().setJob(new Job().setPlacement(new JobPlacement().setClusterName(clusterId))
+						.setHadoopJob(new HadoopJob().setMainClass("WordCount")
+								.setJarFileUris(ImmutableList.of(bucketRoot + "JAR/WordCount.jar"))
+								.setArgs(ImmutableList.of(bucketRoot + "data", outputArg)))))
 				.execute();
+
+		System.out.println("Submitted job for instance #" + instanceId);
+		int x = 0;
+		while (true) {
+			try {
+				retrieveObjects();
+				break;
+			} catch (Exception e) {
+				try {
+					Thread.sleep(10000);
+				} catch (InterruptedException e1) {
+					e1.printStackTrace();
+				}
+				x += 1;
+			}
+			if(x % 10000000 == 0){
+				System.out.print(".");
+			}
+		}
+		System.out.println();
 	}
 }
 
@@ -99,6 +144,7 @@ public class Client {
 			public void actionPerformed(ActionEvent e) {
 
 				try {
+					head.setText("Loading...");
 					client.connect();
 				} catch (IOException e1) {
 					e1.printStackTrace();
