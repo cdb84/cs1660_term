@@ -32,6 +32,22 @@ import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+class Result{
+	String word;
+	String document;
+	int count;
+
+	Result(String word, String document, int count){
+		this.word = word;
+		this.document = document;
+		this.count = count;
+	}
+
+	public String toString() {
+		return word + ": " + document + ", " + count;
+	}
+}
+
 class ClientInstance {
 	File[] files;
 	int instanceId;
@@ -39,7 +55,7 @@ class ClientInstance {
 	String inputArg;
 	Page<Blob> blobs;
 	byte[] outputData;
-	ArrayList<String[]> results;
+	ArrayList<Result> results;
 	Storage storage;
 	static final String projectId = "cloud-computing-term-project";
 	static final String clusterId = "cluster-a6a9";
@@ -50,6 +66,7 @@ class ClientInstance {
 
 	ClientInstance() {
 		this.files = new File[0];
+		results = new ArrayList<Result>();
 	}
 
 	void setFiles(File[] newFiles) {
@@ -82,8 +99,6 @@ class ClientInstance {
 	}
 
 	boolean checkBucketForTemporaryFiles() {
-		// storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build()
-		// 		.getService();
 		blobs = storage.list(bucketId, BlobListOption.prefix("output" + instanceId));
 		Iterator<Blob> iterator = blobs.iterateAll().iterator();
 		try {
@@ -114,14 +129,27 @@ class ClientInstance {
 			total += byteStream.size();
 			byteStream.reset();
 		}
-
-		outputData = new byte[total];
-		int offset = 0;
-		for (byte[] data : allOutput) {
-			System.arraycopy(data, 0, outputData, offset, data.length);
-			offset += data.length;
+		for(byte[] outputFile : allOutput){
+			String outputString = new String(outputFile);
+			String[] lines = outputString.split("[\\r\\n]+");
+			for(String line : lines){
+				String[] items = line.split("[\\t]");
+				results.add(new Result(items[0], items[1], Integer.parseInt(items[2])));
+			}
 		}
-		System.out.print(new String(outputData));
+
+		// outputData = new byte[total];
+		// int offset = 0;
+		// for (byte[] data : allOutput) {
+		// 	System.arraycopy(data, 0, outputData, offset, data.length);
+		// 	offset += data.length;
+		// }
+		// System.out.print(new String(outputData));
+
+		for(Result a : results){
+			System.out.println(a);
+		}
+
 	}
 
 	void connect() throws IOException {
