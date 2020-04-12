@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Stack;
 
@@ -32,7 +33,7 @@ import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-class Result {
+class Result implements Comparable<Result> {
 	String word;
 	String document;
 	int count;
@@ -51,6 +52,18 @@ class Result {
 
 	public String toString() {
 		return word + ": " + document + ", " + count;
+	}
+	/**
+	 * Returns a negative integer, zero, or a positive integer as this object is
+	 * less than, equal to, or greater than the specified object.
+	 */
+	@Override
+	public int compareTo(Result arg0) {
+		if(arg0.count != this.count){
+			return(arg0.count < this.count ? -1 : 1);
+		}else{
+			return 0;
+		}
 	}
 }
 
@@ -116,7 +129,7 @@ class ClientInstance {
 	ArrayList<Result> searchForTerm(String term) {
 		ArrayList<Result> ret = new ArrayList<Result>();
 		for (Result r : results) {
-			if (r.word.contains(term)) {
+			if (r.word.equals(term)) {
 				ret.add(r);
 			}
 		}
@@ -251,13 +264,11 @@ class ClientInstance {
 		 * point we will merge them together when the job is completed
 		 */
 		while (checkBucketForTemporaryFiles()) {
-			x++;
-			if (x % 10000 == 0) {
-				System.out.print(".");
-			}
+			/* do nothing */
 		}
-		System.out.println();
+		System.out.println("Indices built. Merging blobs...");
 		mergeBlobs();
+		System.out.println("Done");
 	}
 }
 
@@ -274,23 +285,39 @@ public class Client {
 		JButton searchBtn = new JButton("Search for Term");
 		JButton topnBtn = new JButton("Top-N");
 		JButton goBtn = new JButton("Search");
+		JButton topNGoBtn = new JButton("Select top Ns");
+		JButton backBtn = new JButton("Back");
 
 		JTextArea editTextArea = new JTextArea("Search");
 
 		int btnWidth = 250;
-		fileChooseBtn.setBounds(250 - btnWidth / 2, 200, btnWidth, 50);
-		constructBtn.setBounds(250 - btnWidth / 2, 350, btnWidth, 50);
-		head.setBounds(250 - btnWidth / 2, 100, btnWidth, 150);
-		searchResults.setBounds(250 - btnWidth / 2, 150, btnWidth, 300);
-		topNResults.setBounds(250 - btnWidth / 2, 200, btnWidth, 300);
+		int typicalX = 250 - btnWidth / 2;
+		fileChooseBtn.setBounds(typicalX, 200, btnWidth, 50);
+		constructBtn.setBounds(typicalX, 350, btnWidth, 50);
+		head.setBounds(typicalX, 100, btnWidth, 150);
+		searchResults.setBounds(typicalX, 150, btnWidth, 300);
+		topNResults.setBounds(typicalX, 200, btnWidth, 300);
 
-		fileList.setBounds(250 - btnWidth / 2, 220, btnWidth, 100);
-		searchBtn.setBounds(250 - btnWidth / 2, 250, btnWidth, 50);
-		topnBtn.setBounds(250 - btnWidth / 2, 350, btnWidth, 50);
-		editTextArea.setBounds(250 - btnWidth / 2, 50, btnWidth, 25);
-		goBtn.setBounds(250 - btnWidth / 2, 75, btnWidth, 25);
-		JButton topNGoBtn = goBtn;
-		topNGoBtn.setText("Select top N terms");
+		fileList.setBounds(typicalX, 220, btnWidth, 100);
+		searchBtn.setBounds(typicalX, 250, btnWidth, 50);
+		topnBtn.setBounds(typicalX, 350, btnWidth, 50);
+		editTextArea.setBounds(typicalX, 50, btnWidth, 25);
+		goBtn.setBounds(typicalX, 75, btnWidth, 25);
+		topNGoBtn.setBounds(typicalX, 75, btnWidth, 25);
+		backBtn.setBounds(0, 0, 100, 50);
+
+		backBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				editTextArea.setText("");
+				topNResults.setText("");
+				searchResults.setText("");
+				frame.getContentPane().removeAll();
+				frame.add(searchBtn);
+				frame.add(topnBtn);
+				frame.add(backBtn);
+				frame.repaint();
+			}
+		});
 
 		fileChooseBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -326,6 +353,8 @@ public class Client {
 				frame.add(searchBtn);
 				frame.add(topnBtn);
 
+				frame.add(backBtn);
+
 				frame.repaint();
 			}
 		});
@@ -334,6 +363,7 @@ public class Client {
 			public void actionPerformed(ActionEvent e) {
 				head.setText("<html>Search functionality</html>");
 				frame.remove(searchBtn);
+				frame.remove(topnBtn);
 				frame.add(editTextArea);
 				frame.add(goBtn);
 				frame.add(searchResults);
@@ -345,6 +375,7 @@ public class Client {
 			public void actionPerformed(ActionEvent e) {
 				head.setText("");
 				ArrayList<Result> results = client.searchForTerm(editTextArea.getText());
+				Collections.sort(results);
 				String resultsString = "";
 				int count = 0;
 				for (Result r : results) {
@@ -385,7 +416,6 @@ public class Client {
 				for (int x = 0; x < n; x++) {
 					resultsString += results.pop().toString() + "<br/>";
 				}
-				System.out.println(resultsString);
 				topNResults.setText("<html>" + resultsString + "</html>");
 				frame.repaint();
 			}
