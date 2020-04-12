@@ -79,6 +79,10 @@ class ClientInstance {
 		this.files = newFiles;
 	}
 
+	/**
+	 * 
+	 * @return Html-formatted string of all files under selection
+	 */
 	String getFiles() {
 		String res = "<html>";
 		for (File a : files) {
@@ -89,6 +93,10 @@ class ClientInstance {
 		return res;
 	}
 
+	/**
+	 * @return Stack of results in order of occurence, with highest- occurring at
+	 *         the top of the stack
+	 */
 	Stack<Result> topN() {
 		Stack<Result> topN = new Stack<Result>();
 		Result top = new Result();
@@ -101,6 +109,10 @@ class ClientInstance {
 		return topN;
 	}
 
+	/**
+	 * @param term the term to search for
+	 * @return ArrayList<Result> containing Result(s) that contain term
+	 */
 	ArrayList<Result> searchForTerm(String term) {
 		ArrayList<Result> ret = new ArrayList<Result>();
 		for (Result r : results) {
@@ -111,12 +123,16 @@ class ClientInstance {
 		return ret;
 	}
 
-	void upload() {
+	/**
+	 * Uploads all files under selection by this client instance
+	 */
+	private void upload() {
 		for (File f : files) {
-
 			BlobId id = BlobId.of(bucketId, "input" + instanceId + "/" + f.getName());
+			/* build a new blob for this object */
 			BlobInfo info = BlobInfo.newBuilder(id).build();
 			try {
+				/* create the actual blob by uploading the file under selection */
 				storage.create(info, Files.readAllBytes(Paths.get(f.getPath())));
 			} catch (IOException e) {
 				System.out.println("Could not retrieve file: " + f.getPath());
@@ -126,9 +142,16 @@ class ClientInstance {
 
 	}
 
-	boolean checkBucketForTemporaryFiles() {
+	/**
+	 * Checks to see if temporary files exist on the output blob for this job
+	 * 
+	 * @return true if files containing "temporary" exist, false if otherwise
+	 */
+	private boolean checkBucketForTemporaryFiles() {
+		/* retrieve a list of blobs */
 		blobs = storage.list(bucketId, BlobListOption.prefix("output" + instanceId));
 		Iterator<Blob> iterator = blobs.iterateAll().iterator();
+		/* try to grab the first element (may not exist) */
 		try {
 			iterator.next();
 		} catch (Exception e) {
@@ -136,25 +159,35 @@ class ClientInstance {
 		}
 		while (iterator.hasNext()) {
 			Blob blob = iterator.next();
+			/* grab each blob and check if the name contains "temporary" */
 			if (blob.getName().contains("temporary")) {
 				return true;
 			}
-			System.out.println(blob.getBlobId());
 		}
 		return false;
 	}
 
-	void mergeBlobs() {
+	/**
+	 * Takes all output blobs and merges them into one comprehensive list of results
+	 * accessible by this.results();
+	 */
+	private void mergeBlobs() {
+		/* allOutput will hold byte representations of output files */
 		ArrayList<byte[]> allOutput = new ArrayList<byte[]>();
-		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+		/* singleton files will be loaded into this stream on a per-file basis */
+		ByteArrayOutputStream temporaryByteStream = new ByteArrayOutputStream();
 		Iterator<Blob> iterator = blobs.iterateAll().iterator();
 		iterator.next();
 		while (iterator.hasNext()) {
 			Blob blob = iterator.next();
-			blob.downloadTo(byteStream);
-			allOutput.add(byteStream.toByteArray());
-			byteStream.reset();
+			blob.downloadTo(temporaryByteStream);
+			allOutput.add(temporaryByteStream.toByteArray());
+			temporaryByteStream.reset();
 		}
+		/*
+		 * for all byte-representations of output files, we will dissect the file by
+		 * line in order to delimit it by tabs in to a Result structure
+		 */
 		for (byte[] outputFile : allOutput) {
 			String outputString = new String(outputFile);
 			String[] lines = outputString.split("[\\r\\n]+");
@@ -163,32 +196,47 @@ class ClientInstance {
 				try {
 					results.add(new Result(items[0], items[1], Integer.parseInt(items[2])));
 				} catch (ArrayIndexOutOfBoundsException a) {
-					System.out.println("Bad index on " + line);
+					System.err.println("Bad index on " + line);
 				}
 
 			}
 		}
 
-		for (Result a : results) {
-			System.out.println(a);
-		}
-
 	}
 
+	/**
+	 * Connects to a GCP cloud cluster and submits a hadoop job pertaining to the
+	 * files under selection
+	 * 
+	 * @throws IOException if credentials.json is not in the current working
+	 *                     directory
+	 */
 	void connect() throws IOException {
+		/* create a psuedo-random instance id for tracking output and input files */
 		instanceId = (int) (Math.random() * 1000000000);
 		outputArg = bucketRoot + "output" + instanceId;
 		inputArg = bucketRoot + "input" + instanceId;
 		InputStream is = this.getClass().getResourceAsStream("/credentials.json");
+
+		/*
+		 * instantiate credentials so that we don't need to do this everytime we access
+		 * the API
+		 */
 		credentials = GoogleCredentials.fromStream(is)
 				.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
 
 		HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
 		Dataproc dataproc = new Dataproc.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer).build();
 
+		/*
+		 * instantiate a storage controller so that we don't need to do this every time
+		 * either
+		 */
 		storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build().getService();
+		/* upload all files under selection by the client */
 		upload();
 
+		/* submit the job */
 		dataproc.projects().regions().jobs()
 				.submit(projectId, region,
 						new SubmitJobRequest().setJob(new Job().setPlacement(new JobPlacement().setClusterName(clusterId))
@@ -198,6 +246,10 @@ class ClientInstance {
 				.execute();
 		System.out.println("Submitted job for instance #" + instanceId);
 		int x = 0;
+		/*
+		 * we will essentially wait until there are no more temporary files, at which
+		 * point we will merge them together when the job is completed
+		 */
 		while (checkBucketForTemporaryFiles()) {
 			x++;
 			if (x % 10000 == 0) {
@@ -322,9 +374,14 @@ public class Client {
 		topNGoBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				head.setText("");
+				/*
+				 * unfortunately we need to generate a stack every time so we can pop from it
+				 * without it going empty on us (we can do multiple Top-N searches)
+				 */
 				Stack<Result> results = client.topN();
 				String resultsString = "";
 				int n = Integer.parseInt(editTextArea.getText());
+				/* only pop the first "n" terms of the stack */
 				for (int x = 0; x < n; x++) {
 					resultsString += results.pop().toString() + "<br/>";
 				}
