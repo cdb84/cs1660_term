@@ -18,7 +18,6 @@ import com.google.api.services.dataproc.model.SubmitJobRequest;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.StorageOptions;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage;
@@ -63,8 +62,9 @@ class ClientInstance {
 		iterator.next();
 		while (iterator.hasNext()) {
 			Blob blob = iterator.next();
-			if (blob.getName().contains("temp"))
+			if (blob.getName().contains("temporary")) {
 				throw new Exception();
+			}
 			System.out.println(blob.getBlobId());
 		}
 	}
@@ -100,9 +100,9 @@ class ClientInstance {
 					e1.printStackTrace();
 				}
 				x += 1;
-			}
-			if(x % 10000000 == 0){
-				System.out.print(".");
+				if (x % 1000000 == 0) {
+					System.out.print(".");
+				}
 			}
 		}
 		System.out.println();
@@ -145,6 +145,7 @@ public class Client {
 
 				try {
 					head.setText("Loading...");
+					frame.repaint();
 					client.connect();
 				} catch (IOException e1) {
 					e1.printStackTrace();
