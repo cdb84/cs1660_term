@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -83,6 +82,16 @@ class ClientInstance {
 		return res;
 	}
 
+	ArrayList<Result> searchForTerm(String term){
+		ArrayList<Result> ret = new ArrayList<Result>();
+		for(Result r : results){
+			if(r.word.contains(term)){
+				ret.add(r);
+			}
+		}
+		return ret;
+	}
+
 	void upload(){
 		for(File f : files){
 			
@@ -118,7 +127,6 @@ class ClientInstance {
 
 	void mergeBlobs() {
 		ArrayList<byte[]> allOutput = new ArrayList<byte[]>();
-		int total = 0;
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		Iterator<Blob> iterator = blobs.iterateAll().iterator();
 		iterator.next();
@@ -126,7 +134,6 @@ class ClientInstance {
 			Blob blob = iterator.next();
 			blob.downloadTo(byteStream);
 			allOutput.add(byteStream.toByteArray());
-			total += byteStream.size();
 			byteStream.reset();
 		}
 		for(byte[] outputFile : allOutput){
@@ -137,14 +144,6 @@ class ClientInstance {
 				results.add(new Result(items[0], items[1], Integer.parseInt(items[2])));
 			}
 		}
-
-		// outputData = new byte[total];
-		// int offset = 0;
-		// for (byte[] data : allOutput) {
-		// 	System.arraycopy(data, 0, outputData, offset, data.length);
-		// 	offset += data.length;
-		// }
-		// System.out.print(new String(outputData));
 
 		for(Result a : results){
 			System.out.println(a);
@@ -193,18 +192,26 @@ public class Client {
 		JFrame frame = new JFrame();
 		JLabel head = new JLabel("Load My Engine");
 		JLabel fileList = new JLabel("");
+		JLabel searchResults = new JLabel("Search Results");
 		JButton fileChooseBtn = new JButton("Choose Files");
 		JButton constructBtn = new JButton("Construct Inverted Indices");
 		JButton searchBtn = new JButton("Search for Term");
 		JButton topnBtn = new JButton("Top-N");
+		JButton goBtn = new JButton("Search");
+
+		JTextArea editTextArea = new JTextArea("Search");
 
 		int btnWidth = 250;
 		fileChooseBtn.setBounds(250 - btnWidth / 2, 200, btnWidth, 50);
 		constructBtn.setBounds(250 - btnWidth / 2, 350, btnWidth, 50);
 		head.setBounds(250 - btnWidth / 2, 100, btnWidth, 150);
+		searchResults.setBounds(250 - btnWidth / 2, 150, btnWidth, 300);
+
 		fileList.setBounds(250 - btnWidth / 2, 220, btnWidth, 100);
 		searchBtn.setBounds(250 - btnWidth / 2, 250, btnWidth, 50);
 		topnBtn.setBounds(250 - btnWidth / 2, 350, btnWidth, 50);
+		editTextArea.setBounds(250 - btnWidth / 2, 50, btnWidth, 25);
+		goBtn.setBounds(250 - btnWidth / 2, 75, btnWidth, 25);
 
 		fileChooseBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -238,7 +245,7 @@ public class Client {
 				frame.remove(fileList);
 
 				frame.add(searchBtn);
-				frame.add(topnBtn);
+				// frame.add(topnBtn);
 
 				frame.repaint();
 			}
@@ -246,8 +253,30 @@ public class Client {
 
 		searchBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				// leads to updates for the search function
-				return;
+				head.setText("<html>Search functionality</html>");
+				frame.remove(searchBtn);
+				frame.add(editTextArea);
+				frame.add(goBtn);
+				frame.add(searchResults);
+				frame.repaint();
+			}
+		});
+
+		goBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e){
+				head.setText("");
+				ArrayList<Result> results = client.searchForTerm(editTextArea.getText());
+				String resultsString = "";
+				int count = 0;
+				for(Result r: results){
+					resultsString += r.toString()+"<br/>";
+					count ++;
+					if(count >= 20){
+						break;
+					}
+				}
+				searchResults.setText("<html>"+resultsString+"</html>");
+				frame.repaint();
 			}
 		});
 
