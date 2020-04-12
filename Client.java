@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Stack;
 
 import com.google.api.gax.paging.Page;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -31,15 +32,21 @@ import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-class Result{
+class Result {
 	String word;
 	String document;
 	int count;
 
-	Result(String word, String document, int count){
+	Result(String word, String document, int count) {
 		this.word = word;
 		this.document = document;
 		this.count = count;
+	}
+
+	Result() {
+		word = "";
+		document = "";
+		count = 0;
 	}
 
 	public String toString() {
@@ -82,29 +89,41 @@ class ClientInstance {
 		return res;
 	}
 
-	ArrayList<Result> searchForTerm(String term){
+	Stack<Result> topN() {
+		Stack<Result> topN = new Stack<Result>();
+		Result top = new Result();
+		for (Result r : results) {
+			if (r.count > top.count) {
+				topN.push(r);
+				top = r;
+			}
+		}
+		return topN;
+	}
+
+	ArrayList<Result> searchForTerm(String term) {
 		ArrayList<Result> ret = new ArrayList<Result>();
-		for(Result r : results){
-			if(r.word.contains(term)){
+		for (Result r : results) {
+			if (r.word.contains(term)) {
 				ret.add(r);
 			}
 		}
 		return ret;
 	}
 
-	void upload(){
-		for(File f : files){
-			
-			BlobId id = BlobId.of(bucketId, "input"+instanceId+"/"+f.getName());
+	void upload() {
+		for (File f : files) {
+
+			BlobId id = BlobId.of(bucketId, "input" + instanceId + "/" + f.getName());
 			BlobInfo info = BlobInfo.newBuilder(id).build();
 			try {
 				storage.create(info, Files.readAllBytes(Paths.get(f.getPath())));
 			} catch (IOException e) {
-				System.out.println("Could not retrieve file: "+f.getPath());
+				System.out.println("Could not retrieve file: " + f.getPath());
 			}
-			System.out.println("Uploaded "+f.getPath());
+			System.out.println("Uploaded " + f.getPath());
 		}
-		
+
 	}
 
 	boolean checkBucketForTemporaryFiles() {
@@ -136,16 +155,21 @@ class ClientInstance {
 			allOutput.add(byteStream.toByteArray());
 			byteStream.reset();
 		}
-		for(byte[] outputFile : allOutput){
+		for (byte[] outputFile : allOutput) {
 			String outputString = new String(outputFile);
 			String[] lines = outputString.split("[\\r\\n]+");
-			for(String line : lines){
+			for (String line : lines) {
 				String[] items = line.split("[\\t]");
-				results.add(new Result(items[0], items[1], Integer.parseInt(items[2])));
+				try {
+					results.add(new Result(items[0], items[1], Integer.parseInt(items[2])));
+				} catch (ArrayIndexOutOfBoundsException a) {
+					System.out.println("Bad index on " + line);
+				}
+
 			}
 		}
 
-		for(Result a : results){
+		for (Result a : results) {
 			System.out.println(a);
 		}
 
@@ -162,8 +186,7 @@ class ClientInstance {
 		HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
 		Dataproc dataproc = new Dataproc.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer).build();
 
-		storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build()
-				.getService();
+		storage = StorageOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build().getService();
 		upload();
 
 		dataproc.projects().regions().jobs()
@@ -193,6 +216,7 @@ public class Client {
 		JLabel head = new JLabel("Load My Engine");
 		JLabel fileList = new JLabel("");
 		JLabel searchResults = new JLabel("Search Results");
+		JLabel topNResults = new JLabel("Top-N Results");
 		JButton fileChooseBtn = new JButton("Choose Files");
 		JButton constructBtn = new JButton("Construct Inverted Indices");
 		JButton searchBtn = new JButton("Search for Term");
@@ -206,12 +230,15 @@ public class Client {
 		constructBtn.setBounds(250 - btnWidth / 2, 350, btnWidth, 50);
 		head.setBounds(250 - btnWidth / 2, 100, btnWidth, 150);
 		searchResults.setBounds(250 - btnWidth / 2, 150, btnWidth, 300);
+		topNResults.setBounds(250 - btnWidth / 2, 200, btnWidth, 300);
 
 		fileList.setBounds(250 - btnWidth / 2, 220, btnWidth, 100);
 		searchBtn.setBounds(250 - btnWidth / 2, 250, btnWidth, 50);
 		topnBtn.setBounds(250 - btnWidth / 2, 350, btnWidth, 50);
 		editTextArea.setBounds(250 - btnWidth / 2, 50, btnWidth, 25);
 		goBtn.setBounds(250 - btnWidth / 2, 75, btnWidth, 25);
+		JButton topNGoBtn = goBtn;
+		topNGoBtn.setText("Select top N terms");
 
 		fileChooseBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -221,7 +248,7 @@ public class Client {
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					client.setFiles(fc.getSelectedFiles());
 					fileList.setText(client.getFiles());
-					for(File a : client.files){
+					for (File a : client.files) {
 						System.out.println(a.getPath());
 					}
 				}
@@ -245,7 +272,7 @@ public class Client {
 				frame.remove(fileList);
 
 				frame.add(searchBtn);
-				// frame.add(topnBtn);
+				frame.add(topnBtn);
 
 				frame.repaint();
 			}
@@ -263,26 +290,47 @@ public class Client {
 		});
 
 		goBtn.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e){
+			public void actionPerformed(ActionEvent e) {
 				head.setText("");
 				ArrayList<Result> results = client.searchForTerm(editTextArea.getText());
 				String resultsString = "";
 				int count = 0;
-				for(Result r: results){
-					resultsString += r.toString()+"<br/>";
-					count ++;
-					if(count >= 20){
+				for (Result r : results) {
+					resultsString += r.toString() + "<br/>";
+					count++;
+					if (count >= 20) {
 						break;
 					}
 				}
-				searchResults.setText("<html>"+resultsString+"</html>");
+				searchResults.setText("<html>" + resultsString + "</html>");
 				frame.repaint();
 			}
 		});
 
 		topnBtn.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				return;
+				head.setText("<html>Search functionality</html>");
+				frame.remove(topnBtn);
+				frame.remove(searchBtn);
+				frame.add(editTextArea);
+				frame.add(topNGoBtn);
+				frame.add(topNResults);
+				frame.repaint();
+			}
+		});
+
+		topNGoBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				head.setText("");
+				Stack<Result> results = client.topN();
+				String resultsString = "";
+				int n = Integer.parseInt(editTextArea.getText());
+				for (int x = 0; x < n; x++) {
+					resultsString += results.pop().toString() + "<br/>";
+				}
+				System.out.println(resultsString);
+				topNResults.setText("<html>" + resultsString + "</html>");
+				frame.repaint();
 			}
 		});
 
