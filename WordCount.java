@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
 public class WordCount {
 	static class WordCountReducer extends Reducer<Text, Text, Text, IntWritable> {
 		private static final Logger logger = LogManager.getLogger(WordCountReducer.class);
+
 		public void reduce(Text key, Iterable<Text> docs, Context context) throws IOException, InterruptedException {
 			/* We will store a map of words : wordcount in this hashmap */
 			HashMap<Text, Integer> occurences = new HashMap<Text, Integer>();
@@ -43,6 +44,10 @@ public class WordCount {
 				try {
 					context.write(k, new IntWritable(v));
 				} catch (Exception e) {
+					/*
+					 * An IO Exception could be thrown here because a file write is happening, or an
+					 * interrupted exception if a SIGINT occurs
+					 */
 					logger.error("An error occurred in the context writting portion of the reducer.", e);
 				}
 			});
