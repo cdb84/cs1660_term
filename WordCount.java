@@ -13,23 +13,25 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 public class WordCount {
 	static class WordCountReducer extends Reducer<Text, Text, Text, IntWritable> {
+		private static final Logger logger = LogManager.getLogger(WordCountReducer.class);
 		public void reduce(Text key, Iterable<Text> docs, Context context) throws IOException, InterruptedException {
 			/* We will store a map of words : wordcount in this hashmap */
-			HashMap<Text, Integer> docCount = new HashMap<Text, Integer>();
+			HashMap<Text, Integer> occurences = new HashMap<Text, Integer>();
 			for (Text docId : docs) {
 				Text k = new Text(key.toString() + "\t" + docId.toString());
 				/*
 				 * Either we will update an already existing document ID in the hashmap, or
 				 * create a new one with with just '1' as the value
 				 */
-				if (docCount.containsKey(k)) {
-					Integer x = docCount.get(k);
-					docCount.put(k, x + 1);
+				if (occurences.containsKey(k)) {
+					occurences.put(k, occurences.get(k) + 1);
 				} else {
-					docCount.put(k, 1);
+					occurences.put(k, 1);
 				}
 			}
 
@@ -37,11 +39,11 @@ public class WordCount {
 			 * For each key : value of documentId : count, we will write (word, documentId,
 			 * count) to the context
 			 */
-			docCount.forEach((Text k, Integer v) -> {
+			occurences.forEach((Text k, Integer v) -> {
 				try {
 					context.write(k, new IntWritable(v));
 				} catch (Exception e) {
-					System.out.println("An error occurred in the context writting portion of the reducer.");
+					logger.error("An error occurred in the context writting portion of the reducer.", e);
 				}
 			});
 		}
@@ -79,8 +81,9 @@ public class WordCount {
 	}
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException, InterruptedException {
+		Logger logger = LogManager.getLogger(WordCount.class);
 		if (args.length != 2) {
-			System.err.println("Usage: java WordCount <input path> <output path>");
+			logger.error("Usage: java WordCount <input path> <output path>");
 			System.exit(-1);
 		}
 
