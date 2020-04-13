@@ -91,7 +91,7 @@ public class WordCount {
 			logger.error("Usage: java WordCount <input path> <output path>");
 			System.exit(-1);
 		}
-
+		logger.info("Input: "+args[0]+" Ouput: "+args[1]);
 		Job job = new Job(new Configuration(), "wordcount");
 		job.setJarByClass(WordCount.class);
 		job.setJobName("WordCount");
