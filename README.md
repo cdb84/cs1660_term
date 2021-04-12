@@ -12,6 +12,3 @@ Run:
 `bash runner.sh`
 
 Recording: 
-
-
-https://1drv.ms/v/s!Ar_V7UuF_ch7gbYPC3K1lPWGIZJ2HA?e=PuB8eR
